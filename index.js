@@ -32,14 +32,14 @@ app.set('trust proxy', 1);
 
 //limit up vote and down vote per 1/2 minute
 const upVoteLimiter = rateLimit({
-  windowMs: 30 * 1000, // 1/2 minute window
+  windowMs: 5 * 1000, // 5 seconds
   max: 1, // start blocking after 1 requests
-  message:'do it again after half a minute'
+  message:'2'
 })
 const downVoteLimiter = rateLimit({
-  windowMs: 30 * 1000, // 1/2 minute window
+  windowMs: 5 * 1000, // 5 seconds
   max: 1, // start blocking after 1 requests
-  message:'do it again after half a minute'
+  message:'2'
 })
 
 app.set('view engine', 'ejs');
@@ -245,7 +245,7 @@ app.get('/whistle', (req, res) => {
 						topic: result.rows[0].topic, 
 						username: username, 
 						meLink: "/user?u=" + username, 
-						user: result.rows[0].from_user, 
+						reqUsername: result.rows[0].from_user, 
 						userLink: "/user?u=" + result.rows[0].from_user,
 						upvote_count: result.rows[0].up_vote,
 						downvote_count: result.rows[0].down_vote,

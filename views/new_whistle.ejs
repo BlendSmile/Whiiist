@@ -1,0 +1,51 @@
+<html>
+    <title>Whistle</title>
+    <style>
+        textarea {
+            resize: none;
+        }
+        topic {
+            width: 40%;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+			background-color: black;
+    		color: white;
+        }
+        p {
+            font-size: 20px;
+        }
+        center {
+            position: absolute;
+            top: 60px;
+            left: 120px;
+        }
+        rightSide{
+            position: absolute;
+            top:300px;
+            left: 550px;
+        }
+		a:link, a:visited {
+    		color: #d8bf04;
+    		text-align: center;
+    		text-decoration: none;
+    		display: inline-block;
+  		}
+    </style>
+    <body>
+        <h1><%= username %></h1>
+        <p>
+		<a href="/home">Home</a> <br>
+        <a href="<%= meLink %>">Me</a> <br>
+        <a href="/whistle">Whistle</a><br>
+		<a href="/public">Public Board</a>
+        <form action="/process_whistle" method="POST">
+            <center>
+            <textarea name="title" cols="70" rows="1" placeholder="title of the whistle"></textarea> <br>
+            <textarea name="content" cols="70" rows="10" placeholder="whistle your thought"></textarea> <br>
+            <textarea name="topic" cols="70" rows="1" placeholder="add topic (eg. #travel #beach)"></textarea> <br>
+            </center>
+            <rightSide><input type="submit" value="Whistle!"></rightSide>
+        </form>
+    </body>
+</html>

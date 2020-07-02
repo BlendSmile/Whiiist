@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Whiiist | Home</title>
+<title>Whiiist | <%= reqUsername %></title>
 <style>
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -10,16 +10,32 @@
   }
   h1 {
     font-size: 20px;
+    text-align: center;
+  }
+  h2 {
+  	font-size: 20px;
+    position: absolute;
+    top: 1px;
+  }
+  h3 {
+  	font-size: 16px;
+    text-align: center;
+  }
+  h4 {
+	font-size: 17;
+    text-align: center;
   }
   l {
     font-size: 17px;
+    position: absolute;
+    top: 50px;
   }
   w {
-    color: #160012
+    color: #f7f7f7;
     font-size: 16px;
     position: absolute;
     left: 160px;
-    top: 30px
+    top: 200px
   }
   a:link, a:visited {
     color: #d8bf04;
@@ -27,20 +43,19 @@
     text-decoration: none;
     display: inline-block;
   }
-
 </style>
 </head>
 <body>
-	<h1><%= username %></h1>
-    <l> 
+	<w>
+
+	</w>
+    
+	<l>
     	<a href="/home"> Home </a> <br>
     	<a href="<%= meLink %>"> Me </a> <br>
     	<a href="/new_whistle"> Whistle </a> <br>
     	<a href="/public"> Public Board </a> <br>
     </l>
-    <w>
-    	<b>Whistles</b> <br><br>
-    	Not Implemented <br>
-    </w>
 </body>
 </html>
+<script</script>

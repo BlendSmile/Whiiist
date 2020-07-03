@@ -22,12 +22,13 @@ var cookieParser = require('cookie-parser');
 var session = require("express-session"),
 	bodyParser = require("body-parser")
 
-app.use(cookieParser());
+app.use(cookieParser()) 
 app.use(express.static("public"))
-app.use(session({ secret: "cats" }))
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(passport.initialize())
 app.use(passport.session())
+app.use(session({ secret: "cats" }))
+app.use(express.json());
 
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
 // see https://expressjs.com/en/guide/behind-proxies.html

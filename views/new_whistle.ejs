@@ -1,6 +1,11 @@
 <html>
     <title>Whistle</title>
     <style>
+		l {
+    		font-size: 17px;
+    		position: absolute;
+    		top: 60px;
+  		}
         textarea {
             resize: none;
         }
@@ -31,14 +36,26 @@
     		text-decoration: none;
     		display: inline-block;
   		}
+		input {
+			background-color: #eef52a;
+  			border: none;
+  			color: black;
+  			text-align: center;
+  			text-decoration: none;
+  			display: inline-block;
+  			font-size: 16px;
+  		}
     </style>
     <body>
         <h1><%= username %></h1>
         <p>
-		<a href="/home">Home</a> <br>
-        <a href="<%= meLink %>">Me</a> <br>
-        <a href="/whistle">Whistle</a><br>
-		<a href="/public">Public Board</a>
+		<l>
+			<a href="/edit-profile">Edit Profile</a> <br>
+			<a href="/home">Home</a> <br>
+        	<a href="<%= meLink %>">Me</a> <br>
+        	<a href="/whistle">Whistle</a><br>
+			<a href="/public">Public Board</a>
+		</l>
         <form action="/process_whistle" method="POST">
             <center>
             <textarea name="title" cols="70" rows="1" placeholder="title of the whistle"></textarea> <br>

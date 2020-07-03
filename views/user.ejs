@@ -18,11 +18,6 @@
     position: absolute;
     top: 1px;
   }
-  h3 {
-  	font-size: 16px;
-	position: absolute;
-    left: 160px;
-  }
   h4 {
 	font-size: 17;
 	position: absolute;
@@ -46,30 +41,40 @@
     text-decoration: none;
     display: inline-block;
   }
+  button {
+  	background-color: #eef52a;
+  	border: none;
+  	color: black;
+  	text-align: center;
+  	text-decoration: none;
+  	display: inline-block;
+  	font-size: 16px;
+  }
 </style>
 </head>
 <body>
-	<h1>
-    	<%= reqUsername %>
+	<h1> 
+    	<br>
+    	<%= reqUsername %> <br>
+        <desc style=font-size:16px><%= userDesc %> </desc> <br>
+        <h4> 
+        	<br> <br> <br> <br>
+    		Reputation: <%= userRep %> <br>
+    		<button>Follow </button> <%= userFollower %> <br>
+    		Whistles: <%= whistles.length %> <br>
+    	</h4>
     </h1>
-	<h3>
-    	<%= userDesc %>
-    </h3>
     <h2>
     	<%= username %>
     </h2>
-    <h4>
-    reputation: <%= userRep %> <br>
-    followers: <%= userFollower %> <br>
-    whistles: <%= whistles.length %> <br>
-    </h4>
     <w>
 
 	<% for(var i=0; i < whistles.length; i++) { %>   		
-    	<%= whistles[i].from_user %> -- <%= whistles[i].title %> <a href="/whistle?w=<%= whistles[i].id %>"> ==> </a> <br>
+    	<%= reqUsername%> -- <%= whistles[i].title %> <a href="/whistle?w=<%= whistles[i].id %>"> ==> </a> <br>
 	<% } %>
     </w>
 	<l>
+		<a href="/edit-profile"> Edit Profile </a> <br>
     	<a href="/home"> Home </a> <br>
     	<a href="<%= meLink %>"> Me </a> <br>
     	<a href="/new_whistle"> Whistle </a> <br>

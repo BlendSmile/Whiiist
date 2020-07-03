@@ -11,15 +11,18 @@ i don't include much comments here lol
 
 const express = require('express');
 const app = express();
+
 const passport = require('passport')
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy
 const db = require('/home/runner/Whiiist-JS/db')
 const ejs = require('ejs')
-const sanitizeHtml = require('sanitize-html');
-const rateLimit = require("express-rate-limit");
+const sanitizeHtml = require('sanitize-html')
+const rateLimit = require("express-rate-limit")
+var cookieParser = require('cookie-parser');
 var session = require("express-session"),
 	bodyParser = require("body-parser")
 
+app.use(cookieParser());
 app.use(express.static("public"))
 app.use(session({ secret: "cats" }))
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -40,6 +43,11 @@ const downVoteLimiter = rateLimit({
   windowMs: 5 * 1000, // 5 seconds
   max: 1, // start blocking after 1 requests
   message:'2'
+})
+const editProfileLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 1, // start blocking after 1 requests
+  message:"Please wait for 30 minutes before you edit your profile again"
 })
 
 app.set('view engine', 'ejs');
@@ -75,57 +83,45 @@ passport.use(new GoogleStrategy({
 app.get('/auth/google',
 	passport.authenticate('google', { scope: ['https://www.googleapis.com/auth/plus.login'] })
 )
-//variable that will store id and email from google sign in
-var googleId
-//variable that will store user profiles from database
-var userId
-var username
-var userEmail
-var userDesc
-var userInterest
-var userFollower
-var userRep
 
 app.get('/auth/google/callback', 
   	passport.authenticate('google', { failureRedirect: '/' }),
-  	function(req, res) {
+  	(req, res) => {
 		//check if user exist
-		googleId = req.user.id
-		db.query('SELECT * FROM users WHERE id=$1;', [googleId], (err, result) => {
+		req.session.googleId = req.user.id
+		db.query('SELECT * FROM users WHERE id=$1;', [req.session.googleId], (err, result) => {
    			if (err) {
 				console.log(err)
     		}
    			if(result.rows.length == 0) { //if not exist, then prompt user to register
 				res.sendFile('views/register.html', {root: __dirname})
 			} else if(result.rows.length > 0) { //if exists, then redirect user to home
+				req.session.userId = result.rows[0].id
+				req.session.username = result.rows[0].name
+				req.session.userEmail = result.rows[0].email
+				req.session.userDesc = result.rows[0].description
+				req.session.userInterest = result.rows[0].interest
+				req.session.userFollower = result.rows[0].followers
+				req.session.userRep = result.rows[0].reputation
 				res.redirect('/home');
-				userId = result.rows[0].id
-				username = result.rows[0].name
-				userEmail = result.rows[0].email
-				userDesc = result.rows[0].description
-				userInterest = result.rows[0].interest
-				userFollower = result.rows[0].followers
-				userRep = result.rows[0].reputation
 			}
   		})
 	}
 )
 
 app.post('/reg', (req, res) => {
-	if(googleId=undefined) {
-		res.redirect('/')
-	} else {
-		username = req.body.username
- 		userDesc = req.body.description
-		userId = googleId
+	if(req.session.googleId) {
+		req.session.username = req.body.username
+ 		req.session.userDesc = req.body.description
+		req.session.userId = req.session.googleId
 		//sanitize
-		userDesc = sanitizeHtml(userDesc)
-		username = sanitizeHtml(username)
+		req.session.userDesc = sanitizeHtml(req.session.userDesc)
+		req.session.username = sanitizeHtml(req.session.username)
 		//check if id is not used
-		db.query('SELECT * FROM users WHERE id=$1', [userId], (err, result0) => {
-			if(result.rows.length > 0) {
+		db.query('SELECT * FROM users WHERE id=$1', [req.session.userId], (err, result0) => {
+			if(result0.rows.length > 0) {
 				res.send("you're already registed")
-			} else if(result.rows.length == 0) {
+			} else if(result0.rows.length == 0) {
 				//check if username is illegal
 				if(req.body.username != req.body.username.trim()) {
 					res.send('please remove any trailing whitespace')
@@ -137,7 +133,7 @@ app.post('/reg', (req, res) => {
 						}
 						if(result.rows.length == 0) {
 							//insert to database
-							db.query("INSERT INTO users(id, name, description, reputation, followers, upvoted_post, downvoted_post, interest) VALUES($1, $2, $3, 0, 0, ARRAY['0'], ARRAY['0'], ARRAY['0']);", [userId, username, userDesc], (err, result2) => {
+							db.query("INSERT INTO users(id, name, description, reputation, followers, upvoted_post, downvoted_post, interest) VALUES($1, $2, $3, 0, 0, ARRAY['0'], ARRAY['0'], ARRAY['0']);", [req.session.userId, req.session.username, req.session.userDesc], (err, result2) => {
 								if(err) {
 									console.log(err)
 									res.write('error registering')
@@ -152,6 +148,8 @@ app.post('/reg', (req, res) => {
 				}
 			}
 		})
+	} else {
+		res.redirect('/')
 	}
 })
 
@@ -160,7 +158,7 @@ app.get('/', (req, res) => {
 })
 
 app.get('/home', (req, res) => {
-	res.render('home', {username: username, meLink: "/user?u=" + username})
+	res.render('home', {username: req.session.username, meLink: "/user?u=" + req.session.username})
 })
 
 app.get('/user', (req, res) => {
@@ -181,15 +179,15 @@ app.get('/user', (req, res) => {
 				reqUserRep = result.rows[0].reputation
 				reqUserFollower = result.rows[0].followers
 				//get user whistles
-				db.query('SELECT * FROM whistles WHERE from_user=$1', [reqUser], (err, result2) => {
+				db.query('SELECT * FROM whistles WHERE from_user=$1', [reqUserId], (err, result2) => {
 					if(err) {
 						res.send('error getting user data')
 					} else {
 						whistles = result2.rows
-						res.render('user', {username: username, 
+						res.render('user', {username: req.session.username, 
 										reqUsername: reqUser, 
 										userDesc: reqUserDesc, 
-										meLink: "/user?u=" + username,
+										meLink: "/user?u=" + req.session.username,
 										userRep: reqUserRep,
 										userFollower: reqUserFollower,
 										whistles: whistles
@@ -204,13 +202,10 @@ app.get('/user', (req, res) => {
 })
 
 app.get('/new_whistle', (req, res) => {
-	res.render('new_whistle', {username: username, meLink: "/user?u=" + username})
+	res.render('new_whistle', {username: req.session.username, meLink: "/user?u=" + req.session.username})
 })
 app.post('/process_whistle', (req, res) => {
-	if(userId == undefined) {
-		res.redirect('/')
-	}
-	else {
+	if(req.session.userId) {
 		var title = req.body.title
 		var content =  req.body.content
 		var topic = req.body.topic
@@ -219,11 +214,11 @@ app.post('/process_whistle', (req, res) => {
 		title = sanitizeHtml(title)
 		content = sanitizeHtml(content)
 		topic = sanitizeHtml(topic)
-		db.query('SELECT * FROM whistles WHERE from_user=$1', [username], (err, result) => {
+		db.query('SELECT * FROM whistles WHERE from_user=$1', [req.session.username], (err, result) => {
 			var nextId = result.rows.length + 1
-			id = userId + nextId.toString()
+			id = req.session.userId + nextId.toString()
 			//insert to database
-			db.query('INSERT INTO whistles(id, title, content, topic, from_user, up_vote, down_vote) VALUES ($1, $2, $3, $4, $5, 0, 0);', [id, title, content, topic, username], (err, result2) => {
+			db.query('INSERT INTO whistles(id, title, content, topic, from_user, up_vote, down_vote) VALUES ($1, $2, $3, $4, $5, 0, 0);', [id, title, content, topic, req.session.userId], (err, result2) => {
 				if(err) {
 					res.send('an error occured')
 					console.log(err)
@@ -232,25 +227,38 @@ app.post('/process_whistle', (req, res) => {
 				}
 			})
 		})
+	} else {
+		res.redirect('/')
 	}
 })
 
 app.get('/whistle', (req, res) => {
 	var whistle = req.query.w
-	db.query('SELECT * FROM whistles WHERE id=$1', [whistle], (req, result) => {
+	db.query('SELECT * FROM whistles WHERE id=$1', [whistle], (err, result) => {
+		console.log(err)
 		if(result.rows.length > 0) {
-			res.render('whistle',
-						{title: result.rows[0].title, 
-						content: result.rows[0].content, 
-						topic: result.rows[0].topic, 
-						username: username, 
-						meLink: "/user?u=" + username, 
-						reqUsername: result.rows[0].from_user, 
-						userLink: "/user?u=" + result.rows[0].from_user,
-						upvote_count: result.rows[0].up_vote,
-						downvote_count: result.rows[0].down_vote,
-						upvoteLink: "/upvote?id=" + whistle,
-						downvoteLink: "/downvote?id=" + whistle})
+			db.query('SELECT * FROM users WHERE id=$1', [result.rows[0].from_user], (err, result2) => {
+				if(err) {
+					console.log(err)
+				} else {
+					if(result2.rows.length > 0) {
+						res.render('whistle',
+									{title: result.rows[0].title, 
+									content: result.rows[0].content, 
+									topic: result.rows[0].topic, 
+									username: req.session.username, 
+									meLink: "/user?u=" + req.session.username, 
+									reqUsername: result2.rows[0].name, 
+									userLink: "/user?u=" + result2.rows[0].name,
+									upvote_count: result.rows[0].up_vote,
+									downvote_count: result.rows[0].down_vote,
+									upvoteLink: "/upvote?id=" + whistle,
+									downvoteLink: "/downvote?id=" + whistle})
+					} else {
+						res.send("can't hear the whistle you're seeking (404 not found)")
+					}
+				}
+			})
 		} else {
 			res.send("can't hear the whistle you're seeking (404 not found)")
 		}
@@ -258,12 +266,10 @@ app.get('/whistle', (req, res) => {
 })
 
 app.get('/upvote', upVoteLimiter, (req, res) => {
-	if(userId == undefined) {
-		res.redirect('/')
-	} else {	
+	if(req.session.userId) {	
 		//check the user is not upvoting the current whisle before
 		var whistleId = req.query.id;
-		db.query('SELECT name FROM users WHERE $1=ANY(upvoted_post) AND name=$2;', [whistleId, username], (err, result) => {
+		db.query('SELECT name FROM users WHERE $1=ANY(upvoted_post) AND name=$2;', [whistleId, req.session.username], (err, result) => {
 			if(result.rows.length > 0) {
 				//delete from user
 				db.query('UPDATE users SET upvoted_post = array_remove(upvoted_post, $1);', [whistleId], (err, result2) => {
@@ -274,7 +280,7 @@ app.get('/upvote', upVoteLimiter, (req, res) => {
 				})
 			} else if(result.rows.length == 0) {
 				//insert to user so it cannot be voted twice
-				db.query('UPDATE users SET upvoted_post = array_append(upvoted_post, $1) WHERE id=$2;', [whistleId, userId], (err, result2) => {
+				db.query('UPDATE users SET upvoted_post = array_append(upvoted_post, $1) WHERE id=$2;', [whistleId, req.session.userId], (err, result2) => {
 					//increment the upvote value
 					db.query('UPDATE whistles SET up_vote = up_vote + 1 WHERE id = $1', [whistleId], (err, result3) => {
 						res.send('1');
@@ -282,15 +288,15 @@ app.get('/upvote', upVoteLimiter, (req, res) => {
 				})
 			}
 		})
+	} else {
+		res.redirect('/')
 	}
 })
 
 app.get('/downvote', downVoteLimiter, (req, res) => {
-	if(userId == undefined) {
-		res.redirect('/')
-	} else {
+	if(req.session.userId) {
 		var whistleId = req.query.id;
-		db.query('SELECT name FROM users WHERE $1=ANY(downvoted_post) AND name=$2;', [whistleId, username], (err, result) => {
+		db.query('SELECT name FROM users WHERE $1=ANY(downvoted_post) AND name=$2;', [whistleId, req.session.username], (err, result) => {
 			if(result.rows.length > 0) {
 				//delete from user
 				db.query('UPDATE users SET downvoted_post = array_remove(downvoted_post, $1);', [whistleId], (err, result2) => {
@@ -301,7 +307,7 @@ app.get('/downvote', downVoteLimiter, (req, res) => {
 				})
 			} else if(result.rows.length == 0) {
 				//insert to user so it cannot be voted twice
-				db.query('UPDATE users SET downvoted_post = array_append(downvoted_post, $1) WHERE id=$2;', [whistleId, userId], (err, result2) => {
+				db.query('UPDATE users SET downvoted_post = array_append(downvoted_post, $1) WHERE id=$2;', [whistleId, req.session.userId], (err, result2) => {
 					//increment the downnvote value
 					db.query('UPDATE whistles SET down_vote = down_vote + 1 WHERE id = $1;', [whistleId], (err, result3) => {
 						res.send('1');
@@ -309,11 +315,41 @@ app.get('/downvote', downVoteLimiter, (req, res) => {
 				})
 			}
 		})
+	} else {
+		res.redirect('/')
+	}
+})
+
+app.get('/edit-profile', (req, res) => {
+	if(req.session.userId) {
+		res.render('edit-profile', {username: req.session.username,
+									userDescription: req.session.userDesc,
+									meLink: "/user?u=" + req.session.username});
+	} else {
+		res.redirect('')
+	}
+})
+
+app.post('/process-edit-profile', editProfileLimiter, (req, res) => {
+	req.session.username = req.body.username
+	req.session.userDesc = req.body.description
+	//check if user has logged in or not
+	if(req.session.userId) {
+		//update database 
+		db.query('UPDATE users SET name = $1, description = $2 WHERE id=$3', [req.session.username, req.session.userDesc, req.session.userId] , (err, result) => {
+			if(err) {
+				res.send('an error occured')
+			} else {
+				res.redirect('/user?u=' + req.session.username)	
+			}
+		})
+	} else {
+		res.redirect('/')
 	}
 })
 
 app.listen(3000, () => {
-    console.log('server started');
+    console.log('server started')
 });
 
 //various functions

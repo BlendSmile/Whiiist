@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Whiiist | Edit Profile</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: black;
+    color: white;
+  }
+  h1 {
+  	font-size: 20px;
+    position: absolute;
+    top: 1px;
+  }
+  l {
+    font-size: 17px;
+    position: absolute;
+    top: 50px;
+  }
+  a:link, a:visited {
+    color: #d8bf04;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+  }
+  textarea {
+  	resize: none;
+  }
+  center {
+      position: absolute;
+      top: 60px;
+      left: 120px;
+  }
+  rightSide{
+      position: absolute;
+      top:280px;
+      left: 520px;
+  }
+  button {
+  	background-color: #eef52a;
+  	border: none;
+  	color: black;
+  	text-align: center;
+  	text-decoration: none;
+  	display: inline-block;
+  	font-size: 16px;
+  }
+  input {
+	background-color: #eef52a;
+  	border: none;
+  	color: black;
+  	text-align: center;
+  	text-decoration: none;
+  	display: inline-block;
+  	font-size: 16px;
+  }
+</style>
+</head>
+<body>
+    <h1>
+    	<%= username %>
+    </h1>
+	<l>
+		<a href="/edit-profile"> Edit Profile </a> <br>
+    	<a href="/home"> Home </a> <br>
+    	<a href="<%= meLink %>"> Me </a> <br>
+    	<a href="/new_whistle"> Whistle </a> <br>
+    	<a href="/public"> Public Board </a> <br>
+    </l>
+    <form action="/process-edit-profile" method="POST">
+        <center>
+            <textarea name="username" cols="70" rows="1" placeholder="Usename"><%=username %></textarea> <br>
+            <textarea name="description" cols="70" rows="10" placeholder="Description"><%=userDescription %></textarea> <br>
+        </center>
+    	<rightSide>
+        <button onclick="home()">Cancel</button>
+        <input type="submit" value="Update">
+        </rightSide>
+    </form> 
+</body>
+</html>
+<script>
+	function home() {
+		window.location.replace('/home')
+	}
+</script>

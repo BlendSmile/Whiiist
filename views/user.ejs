@@ -60,7 +60,7 @@
         <h4> 
         	<br> <br> <br> <br>
     		Reputation: <%= userRep %> <br>
-    		<button>Follow </button> <%= userFollower %> <br>
+    		<button onclick="follow()">Follow </button><label id="follow_count"> <%= userFollower %> </label><br>
     		Whistles: <%= whistles.length %> <br>
     	</h4>
     </h1>
@@ -82,3 +82,21 @@
     </l>
 </body>
 </html>
+<script>
+function follow() {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+    	if(this.responseText == '1') {
+     		document.getElementById('follow_count').innerHTML = (Number(document.getElementById('follow_count').innerHTML) + 1).toString()
+        } else if (this. responseText == '-1') {
+        	document.getElementById('follow_count').innerHTML = (Number(document.getElementById('follow_count').innerHTML) - 1).toString()
+        } else if (this.responseText == '2') {
+        	alert('Do it again after 1 minute')
+        }
+    }
+  };
+  xhttp.open("GET", '<%= followLink %>', true);
+  xhttp.send();
+}
+</script>

@@ -69,6 +69,8 @@
     	<a href="/public"> Public Board </a> <br>
     </l>
     <form action="/process-edit-profile" method="POST">
+		<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+		
         <center>
             <textarea name="username" cols="70" rows="1" placeholder="Usename"><%=username %></textarea> <br>
             <textarea name="description" cols="70" rows="10" placeholder="Description"><%=userDescription %></textarea> <br>

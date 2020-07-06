@@ -1,5 +1,5 @@
 <html>
-    <title>Whistle</title>
+    <title>Edit Whistle</title>
     <style>
 		l {
     		font-size: 17px;
@@ -28,7 +28,7 @@
         rightSide{
             position: absolute;
             top:300px;
-            left: 550px;
+            left: 590px;
         }
 		a:link, a:visited {
     		color: #d8bf04;
@@ -56,14 +56,16 @@
         	<a href="/whistle">Whistle</a><br>
 			<a href="/public">Public Board</a>
 		</l>
-        <form action="/process_whistle" method="POST">
+        <form action="<%= editLink %>" method="POST">
 			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+			<input type="hidden" name="whistle_id" value="<%= whistleId %>">
             <center>
-            <textarea name="title" cols="70" rows="1" placeholder="title of the whistle"></textarea> <br>
-            <textarea name="content" cols="70" rows="10" placeholder="whistle your thought"></textarea> <br>
-            <textarea name="topic" cols="70" rows="1" placeholder="add topic (eg. #travel #beach)"></textarea> <br>
+            <textarea name="title" cols="70" rows="1" placeholder="title of the whistle"><%= title %></textarea> <br>
+            <textarea name="content" cols="70" rows="10" placeholder="whistle your thought"><%= content %></textarea><br>
+            <textarea name="topic" cols="70" rows="1" placeholder="add topic (eg. #travel #beach)"><%= topic %></textarea> <br>
+			
             </center>
-            <rightSide><input type="submit" value="Whistle!"></rightSide>
+            <rightSide><input type="submit" value="Update"></rightSide>
         </form>
     </body>
 </html>

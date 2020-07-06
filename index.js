@@ -1,4 +1,10 @@
 /*
+   __    _    _   _           __  __  __   _____   _| |_
+  /  \  | |  | | | | __      / / / / / /  /  ___\ |_   _|
+ / /\ \/   \/  | | |/_  \   / / / / / /   |  \____  | |
+ \|  |   |\   /  |  / | |  / / / / / /    /\____  | | |_______
+      \_/  \_/   |_|  | | /_/ /_/ /_/    |_______/   \_______/
+
 this software is licensed under the GNU GPL license in hope that
 it will be useful. Please don't misuse the source code
 Salaam...
@@ -6,18 +12,29 @@ Salaam...
 PS~ to understand the source code, try messing around on Whiiist first, 
 i don't include much comments here lol
 
+====================================================================
+ _
+/!\ ERROR (since none of you will notice if its a warning): 
+‾‾‾
+	IF YOU FIND A VULNARABELITY (wich most likely you will), 
+	PLEASE CONTACT ME IMMEDIATELY via discord: Blend_Smile#5205 or email: mrelytra@gmail.com
+	you'll definitely get some credit if you do ;)
+====================================================================
+
 ----Muhammad Alif Vardha (blend_smile)
 */
-
-const express = require('express');
+const { google } = require('googleapis')
+const express = require('express')
 const app = express();
-
 const passport = require('passport')
-const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy
 const db = require('/home/runner/Whiiist-JS/db')
+const whistleLib = require('/home/runner/Whiiist-JS/whistle')
+const userLib = require('/home/runner/Whiiist-JS/user')
 const ejs = require('ejs')
 const sanitizeHtml = require('sanitize-html')
 const rateLimit = require("express-rate-limit")
+const request = require('request')
+const csrf = require('csurf')
 var cookieParser = require('cookie-parser');
 var session = require("express-session"),
 	bodyParser = require("body-parser")
@@ -28,8 +45,9 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(passport.initialize())
 app.use(passport.session())
 app.use(session({ secret: "cats" }))
-app.use(express.json());
+app.use(express.json())
 
+var csrfProtection = csrf({ cookie: false })
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
 // see https://expressjs.com/en/guide/behind-proxies.html
 app.set('trust proxy', 1);
@@ -50,103 +68,103 @@ const editProfileLimiter = rateLimit({
   max: 1, // start blocking after 1 requests
   message:"Please wait for 30 minutes before you edit your profile again"
 })
-
+const followLimiter = rateLimit({
+	windowMs: 5 * 1000, //5 sec
+	max: 1,
+	message:'2' 
+})
+const generalLimiter = rateLimit({
+	windowMs: 1 * 1000, //1 sec
+	max: 1,
+	message: 'Oho! Calm down with the requests'
+})
 app.set('view engine', 'ejs');
 
-//configure passport
-passport.serializeUser(function(user, done) {
-  done(null, user)
+//configure google oauth2 sign in
+var OAuth2 = google.auth.OAuth2;
+
+const clientId = process.env.CLIENT_ID // e.g. asdfghjkljhgfdsghjk.apps.googleusercontent.com
+const clientSecret = process.env.CLIENT_SECRET // e.g. _ASDFA%DFASDFASDFASD#FAD-
+const redirectUrl = "https://whiiist-js--blendsmile.repl.co/auth/google/callback" // this must match your google api settings
+
+
+const defaultScope = [
+  'https://www.googleapis.com/auth/plus.me',
+];
+
+//create a Google URL and send to the client to log in the user.
+app.get('/auth/google', generalLimiter, (req, res) => {
+	var oauth2Client = new OAuth2(clientId,  clientSecret, redirectUrl)
+    var scopes = [
+    	'https://www.googleapis.com/auth/plus.me'
+    ];
+ 
+    var url = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: scopes 
+    });
+  	
+	res.redirect(url)
 })
 
-passport.deserializeUser(function(user, done) {
-  done(null, user)
+//take the "code" parameter which Google gives us once when the user logs in, then get the user's email and id.
+
+app.get('/auth/google/callback', generalLimiter, (req, res) => {
+	var oauth2Client = new OAuth2(clientId,  clientSecret, redirectUrl)
+	const code = req.query.code
+	//check if user exist
+	oauth2Client.getToken(code, function(err, tokens) {
+		if(!err) { 	
+			console.log(tokens)
+			var url = 'https://www.googleapis.com/oauth2/v3/userinfo?access_token=' + tokens.access_token
+
+			request({
+			    url: url,
+			    json: true
+			}, (error, response, body) => {
+			    if (!error && response.statusCode === 200) {
+			        req.session.googleId = body.sub
+					console.log(body)
+					console.log(body.sub)
+					db.query('SELECT * FROM users WHERE id=$1;', [req.session.googleId], (err, result) => {
+   						if (err) {
+							console.log(err)
+    					}
+   						if(result.rows.length == 0) { //if not exist, then prompt user to register
+							res.sendFile('views/register.html', {root: __dirname})
+						} else if(result.rows.length > 0) { //if exists, then redirect user to home
+							req.session.userId = result.rows[0].id
+							req.session.username = result.rows[0].name
+							req.session.userEmail = result.rows[0].email
+							req.session.userDesc = result.rows[0].description
+							req.session.userInterest = result.rows[0].interest
+							req.session.userFollower = result.rows[0].followers
+							req.session.userRep = result.rows[0].reputation
+							res.redirect('/home');
+						}
+  					})
+			    }
+			})	
+      	} else {
+        	res.send(`error`);
+      	}
+    })
 })
 
-passport.use(new GoogleStrategy({
-		clientID: process.env.CLIENT_ID,
-		clientSecret: process.env.CLIENT_SECRET,
-		callbackURL: "https://whiiist-js--blendsmile.repl.co/auth/google/callback"
-	},
-	function(accessToken, refreshToken, profile, done) {
-		/*User.findOrCreate({ googleId: profile.id }, function (err, user) {
-			return done(err, user)
-		});*/
-		if (profile) {
-			user = profile;
-			return done(null, user)
-		} else {
-			return done(null, false)
-		}
-	}
-))
-
-//google authentication
-app.get('/auth/google',
-	passport.authenticate('google', { scope: ['https://www.googleapis.com/auth/plus.login'] })
-)
-
-app.get('/auth/google/callback', 
-  	passport.authenticate('google', { failureRedirect: '/' }),
-  	(req, res) => {
-		//check if user exist
-		req.session.googleId = req.user.id
-		db.query('SELECT * FROM users WHERE id=$1;', [req.session.googleId], (err, result) => {
-   			if (err) {
-				console.log(err)
-    		}
-   			if(result.rows.length == 0) { //if not exist, then prompt user to register
-				res.sendFile('views/register.html', {root: __dirname})
-			} else if(result.rows.length > 0) { //if exists, then redirect user to home
-				req.session.userId = result.rows[0].id
-				req.session.username = result.rows[0].name
-				req.session.userEmail = result.rows[0].email
-				req.session.userDesc = result.rows[0].description
-				req.session.userInterest = result.rows[0].interest
-				req.session.userFollower = result.rows[0].followers
-				req.session.userRep = result.rows[0].reputation
-				res.redirect('/home');
-			}
-  		})
-	}
-)
-
-app.post('/reg', (req, res) => {
+app.post('/reg', generalLimiter, (req, res) => {
 	if(req.session.googleId) {
-		req.session.username = req.body.username
- 		req.session.userDesc = req.body.description
-		req.session.userId = req.session.googleId
-		//sanitize
-		req.session.userDesc = sanitizeHtml(req.session.userDesc)
-		req.session.username = sanitizeHtml(req.session.username)
+		var username = sanitizeHtml(req.body.username)
+ 		var userDesc = sanitizeHtml(req.body.description)
+		var userId = req.session.googleId
 		//check if id is not used
-		db.query('SELECT * FROM users WHERE id=$1', [req.session.userId], (err, result0) => {
-			if(result0.rows.length > 0) {
-				res.send("you're already registed")
-			} else if(result0.rows.length == 0) {
-				//check if username is illegal
-				if(req.body.username != req.body.username.trim()) {
-					res.send('please remove any trailing whitespace')
-				} else {
-					//check if username is used
-					db.query('SELECT * FROM users WHERE name=$1;', [req.body.username], (err, result) => {
-						if(err) {
-							console.log(err);
-						}
-						if(result.rows.length == 0) {
-							//insert to database
-							db.query("INSERT INTO users(id, name, description, reputation, followers, upvoted_post, downvoted_post, interest) VALUES($1, $2, $3, 0, 0, ARRAY['0'], ARRAY['0'], ARRAY['0']);", [req.session.userId, req.session.username, req.session.userDesc], (err, result2) => {
-								if(err) {
-									console.log(err)
-									res.write('error registering')
-								}
-								console.log(result2)
-								res.redirect('/home')
-							})
-						} else if(result.rows.length > 0) {
-							res.send('another whistler is also using that username, please pick anything else')
-						}
-					})
-				}
+		userLib.createUser(userId, username, userDesc, (err) => {
+			if(!err) {
+				req.session.username = username
+				req.session.userDesc = userDesc
+				req.session.userId = userId
+				res.redirect('/home')
+			} else {
+				res.send(err)
 			}
 		})
 	} else {
@@ -154,141 +172,84 @@ app.post('/reg', (req, res) => {
 	}
 })
 
-app.get('/', (req, res) => {
+app.get('/', generalLimiter, (req, res) => {
     res.sendFile('views/home.html', {root: __dirname })
 })
 
 app.get('/home', (req, res) => {
-	res.render('home', {username: req.session.username, meLink: "/user?u=" + req.session.username})
+	if(req.session.username) {
+		res.render('home', {username: req.session.username, meLink: "/user?u=" + req.session.username})
+	} else {
+		res.redirect('/')
+	}
 })
 
-app.get('/user', (req, res) => {
+app.get('/user', generalLimiter, (req, res) => {
 	var reqUser = req.query.u
-	var reqUserId
-	var reqUserDesc
-	var reqUserRep
-	var reqUserFollower
 	//get requested user whistles and profile
-	db.query('SELECT * FROM users WHERE name=$1', [reqUser], (err, result) => {
-		if(err) {
-			res.send('error getting user data')
-		} else {
-			//check if user exist
-			if(result.rows.length > 0) { //exist
-				reqUserId = result.rows[0].id
-				reqUserDesc = result.rows[0].description
-				reqUserRep = result.rows[0].reputation
-				reqUserFollower = result.rows[0].followers
-				//get user whistles
-				db.query('SELECT * FROM whistles WHERE from_user=$1', [reqUserId], (err, result2) => {
-					if(err) {
-						res.send('error getting user data')
-					} else {
-						whistles = result2.rows
-						res.render('user', {username: req.session.username, 
-										reqUsername: reqUser, 
-										userDesc: reqUserDesc, 
-										meLink: "/user?u=" + req.session.username,
-										userRep: reqUserRep,
-										userFollower: reqUserFollower,
-										whistles: whistles
-										})
-					}
-				})
-			} else { //not exist
-				res.send('whistler you are seeking could not be found :(')
-			}
-		}
+	userLib.viewUser(reqUser, (reqUserId, reqUserDesc, reqUserFollower, reqUserRep, whistles) => {
+		res.render('user', {username: req.session.username, 
+						reqUsername: reqUser, 
+						userDesc: reqUserDesc, 
+						meLink: "/user?u=" + req.session.username,
+						userRep: reqUserRep,
+						userFollower: reqUserFollower,
+						whistles: whistles,
+						followLink: "/follow?id=" + reqUserId
+						})
 	})
 })
 
-app.get('/new_whistle', (req, res) => {
-	res.render('new_whistle', {username: req.session.username, meLink: "/user?u=" + req.session.username})
+app.get('/new_whistle', csrfProtection, (req, res) => {
+	res.render('new_whistle', {username: req.session.username, meLink: "/user?u=" + req.session.username, csrfToken: req.csrfToken()})
 })
-app.post('/process_whistle', (req, res) => {
+app.post('/process_whistle', csrfProtection, generalLimiter, (req, res) => {
 	if(req.session.userId) {
-		var title = req.body.title
-		var content =  req.body.content
-		var topic = req.body.topic
-		var id
-		//encode
-		title = sanitizeHtml(title)
-		content = sanitizeHtml(content)
-		topic = sanitizeHtml(topic)
-		db.query('SELECT * FROM whistles WHERE from_user=$1', [req.session.username], (err, result) => {
-			var nextId = result.rows.length + 1
-			id = req.session.userId + nextId.toString()
-			//insert to database
-			db.query('INSERT INTO whistles(id, title, content, topic, from_user, up_vote, down_vote) VALUES ($1, $2, $3, $4, $5, 0, 0);', [id, title, content, topic, req.session.userId], (err, result2) => {
-				if(err) {
-					res.send('an error occured')
-					console.log(err)
-				} else {
-					res.redirect('/home')
-				}
-			})
+		var title = sanitizeHtml(req.body.title)
+		var content =  sanitizeHtml(req.body.content)
+		var topic = sanitizeHtml(req.body.topic)
+		whistleLib.createWhistle(title, content, topic, req.session.userId, () => {
+			res.redirect('/home')
 		})
 	} else {
 		res.redirect('/')
 	}
 })
 
-app.get('/whistle', (req, res) => {
+app.get('/whistle', generalLimiter, (req, res) => {
 	var whistle = req.query.w
-	db.query('SELECT * FROM whistles WHERE id=$1', [whistle], (err, result) => {
-		console.log(err)
-		if(result.rows.length > 0) {
-			db.query('SELECT * FROM users WHERE id=$1', [result.rows[0].from_user], (err, result2) => {
-				if(err) {
-					console.log(err)
-				} else {
-					if(result2.rows.length > 0) {
-						res.render('whistle',
-									{title: result.rows[0].title, 
-									content: result.rows[0].content, 
-									topic: result.rows[0].topic, 
-									username: req.session.username, 
-									meLink: "/user?u=" + req.session.username, 
-									reqUsername: result2.rows[0].name, 
-									userLink: "/user?u=" + result2.rows[0].name,
-									upvote_count: result.rows[0].up_vote,
-									downvote_count: result.rows[0].down_vote,
-									upvoteLink: "/upvote?id=" + whistle,
-									downvoteLink: "/downvote?id=" + whistle})
-					} else {
-						res.send("can't hear the whistle you're seeking (404 not found)")
-					}
-				}
-			})
+	//get the whistle's contents
+	whistleLib.viewWhistle(whistle, req.session.userId, 
+	(reqUsername, title, content, topic, upvote, downvote, err) => {
+		if(!err) {
+			//check if the whistles is belong to user		
+			res.render('whistle',
+						{title: title, 
+						content: content, 
+						topic: topic, 
+						username: req.session.username, 
+						meLink: "/user?u=" + req.session.username, 
+						reqUsername: reqUsername, 
+						userLink: "/user?u=" + reqUsername,
+						upvote_count: upvote,
+						downvote_count: downvote,
+						upvoteLink: "/upvote?id=" + whistle,
+						downvoteLink: "/downvote?id=" + whistle,
+						isOwnPost: reqUsername == req.session.username,
+						editWhistleLink: "/edit-whistle?id=" + whistle,
+						deleteWhistleLink: "/delete-whistle?id=" + whistle})
 		} else {
-			res.send("can't hear the whistle you're seeking (404 not found)")
+			res.send(err)
 		}
 	})
 })
 
 app.get('/upvote', upVoteLimiter, (req, res) => {
 	if(req.session.userId) {	
-		//check the user is not upvoting the current whisle before
-		var whistleId = req.query.id;
-		db.query('SELECT name FROM users WHERE $1=ANY(upvoted_post) AND name=$2;', [whistleId, req.session.username], (err, result) => {
-			if(result.rows.length > 0) {
-				//delete from user
-				db.query('UPDATE users SET upvoted_post = array_remove(upvoted_post, $1);', [whistleId], (err, result2) => {
-					//decrement the upvote value 
-					db.query('UPDATE whistles SET up_vote = up_vote - 1 WHERE id = $1', [whistleId], (err, result3) => {
-						res.send('-1');
-					})
-				})
-			} else if(result.rows.length == 0) {
-				//insert to user so it cannot be voted twice
-				db.query('UPDATE users SET upvoted_post = array_append(upvoted_post, $1) WHERE id=$2;', [whistleId, req.session.userId], (err, result2) => {
-					//increment the upvote value
-					db.query('UPDATE whistles SET up_vote = up_vote + 1 WHERE id = $1', [whistleId], (err, result3) => {
-						res.send('1');
-					})
-				})
-			}
-		})
+		var whistleId = req.query.id
+		if(req.session.userId != whistleId) {
+			res.send(whistleLib.upVote(whistleId, req.sesion.userId))
+		}
 	} else {
 		res.redirect('/')
 	}
@@ -296,52 +257,37 @@ app.get('/upvote', upVoteLimiter, (req, res) => {
 
 app.get('/downvote', downVoteLimiter, (req, res) => {
 	if(req.session.userId) {
-		var whistleId = req.query.id;
-		db.query('SELECT name FROM users WHERE $1=ANY(downvoted_post) AND name=$2;', [whistleId, req.session.username], (err, result) => {
-			if(result.rows.length > 0) {
-				//delete from user
-				db.query('UPDATE users SET downvoted_post = array_remove(downvoted_post, $1);', [whistleId], (err, result2) => {
-					//decrement the downvote value 
-					db.query('UPDATE whistles SET down_vote = down_vote - 1 WHERE id = $1', [whistleId], (err, result3) => {
-						res.send('-1');
-					})
-				})
-			} else if(result.rows.length == 0) {
-				//insert to user so it cannot be voted twice
-				db.query('UPDATE users SET downvoted_post = array_append(downvoted_post, $1) WHERE id=$2;', [whistleId, req.session.userId], (err, result2) => {
-					//increment the downnvote value
-					db.query('UPDATE whistles SET down_vote = down_vote + 1 WHERE id = $1;', [whistleId], (err, result3) => {
-						res.send('1');
-					})
-				})
-			}
-		})
+		var whistleId = req.query.id
+		if(req.session.userId == whistleId) {
+			res.send(whistleLib.downVote(whistleId, req.sesion.userId))
+		}
 	} else {
 		res.redirect('/')
 	}
 })
 
-app.get('/edit-profile', (req, res) => {
+app.get('/edit-profile', csrfProtection, (req, res) => {
 	if(req.session.userId) {
 		res.render('edit-profile', {username: req.session.username,
 									userDescription: req.session.userDesc,
-									meLink: "/user?u=" + req.session.username});
+									meLink: "/user?u=" + req.session.username,
+									csrfToken: req.csrfToken()});
 	} else {
-		res.redirect('')
+		res.redirect('/')
 	}
 })
 
-app.post('/process-edit-profile', editProfileLimiter, (req, res) => {
-	req.session.username = req.body.username
-	req.session.userDesc = req.body.description
+app.post('/process-edit-profile', csrfProtection, editProfileLimiter, (req, res) => {
+	var username = sanitizeHtml(req.body.username)
+	var userDesc = sanitizeHtml(req.body.description)
 	//check if user has logged in or not
 	if(req.session.userId) {
-		//update database 
-		db.query('UPDATE users SET name = $1, description = $2 WHERE id=$3', [req.session.username, req.session.userDesc, req.session.userId] , (err, result) => {
-			if(err) {
-				res.send('an error occured')
+		userLib.editUser(req.session.userId, username, userDesc, (err) => {
+			if(!err) {
+				req.session.username = username
+				req.session.userDesc = userDesc
 			} else {
-				res.redirect('/user?u=' + req.session.username)	
+				res.send(err)
 			}
 		})
 	} else {
@@ -349,14 +295,60 @@ app.post('/process-edit-profile', editProfileLimiter, (req, res) => {
 	}
 })
 
+app.get('/follow', followLimiter, (req, res) => {
+	var reqUser = req.query.id //requested user to follow/unfollow
+	//check if user is already followng the requested user
+	if(req.session.userId) {
+		res.send(userLib.followUser(req.session.userId, reqUser))
+	} else {
+		res.redirect('/')
+	}
+})
+
+app.get('/edit-whistle', csrfProtection,(req, res) => {
+	var whistleId = req.query.id
+	res.render('edit_whistle', {
+									csrfToken: req.csrfToken(),
+									meLink: "/user?u=" + req.session.username,
+									username: req.session.username,
+									title: result.rows[0].title,
+									content: result.rows[0].content,
+									topic: result.rows[0].topic,
+									whistleId: whistleId
+								})
+})
+app.post('/process-edit-whistle', csrfProtection, (req, res) => {
+	var whistleId = req.body.whistle_id
+	var title = sanitizeHtml(req.body.title)
+	var content = sanitizeHtml(req.body.content)
+	var topic = sanitizeHtml(req.body.topic)
+	//check again if the whistle exists and belong to the user
+	whistleLib.editWhistle(whistleId, req.session.userId, title, content, topic, (err) => {
+		if(!err) {
+			res.redirect('/')
+		} else {
+			res.send(err)
+		}
+	})
+})
+app.get('/delete-whistle', csrfProtection, (req, res) => {
+	res.render('delete-whistle', {username: req.session.username,
+								  meLink: "/user?u=" + req.session.username,
+								  csrfToken: req.csrfToken(), 
+								  whistleId: req.query.id})
+})
+
+app.post('/process-delete-whistle', csrfProtection, (req, res) => {
+	//check if whistle belongs to current user
+	whistleLib.deleteWhistle(req.query.id, req.session.userId, (err) => {
+		if(!err) {
+			res.redirect('/')
+		} else {
+			res.send(err)
+		}
+	})
+	
+})
 app.listen(3000, () => {
     console.log('server started')
 });
-
-//various functions
-function uuidv4() {
- 	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    	var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    	return v.toString(16);
-  	});
-}

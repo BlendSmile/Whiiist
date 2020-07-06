@@ -54,9 +54,11 @@
   }
 </style>
 </head>
-<body>
+<body onload="onload()">
 	<w>
 		<a href="<%= userLink %>"> <%= reqUsername %> </a> <br> <br>
+		<label id="edit_whistle"> </label> <br>
+		<label id="delete_whistle"> </label> <br>
         
         <button onclick="upvote()"> /\ </button> 
         
@@ -84,6 +86,12 @@
 </body>
 </html>
 <script> 
+function onload(){
+	if(<%= isOwnPost %>) {
+		document.getElementById('edit_whistle').innerHTML = '<a href="<%= editWhistleLink %>"> Edit </a>'
+		document.getElementById('delete_whistle').innerHTML = '<a href="<%= deleteWhistleLink %>"> Delete </a>'
+	} 
+}
 function upvote() {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {

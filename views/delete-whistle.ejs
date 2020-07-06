@@ -1,5 +1,5 @@
 <html>
-    <title>Whistle</title>
+    <title>Delete Whistle | Confirmation</title>
     <style>
 		l {
     		font-size: 17px;
@@ -21,14 +21,12 @@
             font-size: 20px;
         }
         center {
-            position: absolute;
-            top: 60px;
-            left: 120px;
+        	text-align: center;
         }
         rightSide{
             position: absolute;
             top:300px;
-            left: 550px;
+            left: 590px;
         }
 		a:link, a:visited {
     		color: #d8bf04;
@@ -56,14 +54,13 @@
         	<a href="/whistle">Whistle</a><br>
 			<a href="/public">Public Board</a>
 		</l>
-        <form action="/process_whistle" method="POST">
-			<input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <center>
-            <textarea name="title" cols="70" rows="1" placeholder="title of the whistle"></textarea> <br>
-            <textarea name="content" cols="70" rows="10" placeholder="whistle your thought"></textarea> <br>
-            <textarea name="topic" cols="70" rows="1" placeholder="add topic (eg. #travel #beach)"></textarea> <br>
-            </center>
-            <rightSide><input type="submit" value="Whistle!"></rightSide>
-        </form>
+        <center>
+        	<form action="/process-delete-whistle" method="POST">
+            	<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+				<input type="hidden" name="whistle_id" value="<%= whistleId%>">
+            	<h2><label>Delete the whistle? You cannot undo this</label><h2>
+            	<input type="submit" value="Yes"> 
+            </form>
+        </center>
     </body>
 </html>
